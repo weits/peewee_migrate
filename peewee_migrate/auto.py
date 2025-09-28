@@ -1,3 +1,4 @@
+# peewee_migrate/auto.py
 """Automatically create migrations."""
 from __future__ import annotations
 
@@ -365,18 +366,44 @@ def change_not_null(model_type: TModelType, name: str, *, null: bool) -> str:
     return "migrator.%s('%s', %s)" % (operation, meta.table_name, repr(name))
 
 
+# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< START OF FIX <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 def add_index(model_type: TModelType, name: Union[str, Iterable[str]], *, unique: bool) -> str:
-    """Generate migrations."""
-    meta = model_type._meta  # type: ignore[]
-    columns = repr(name).strip("()[]")
-    return f"migrator.add_index('{meta.table_name}', {columns}, unique={unique})"
+    """Generate migrations to add an index, resolving Foreign Key column names."""
+    meta = model_type._meta
+
+    column_names = [name] if isinstance(name, str) else name
+    resolved_columns = []
+    for field_name in column_names:
+        # field_name can be an expression, so we handle it as a string
+        field_name_str = str(field_name)
+        field_object = meta.fields.get(field_name_str)
+        if field_object and isinstance(field_object, pw.ForeignKeyField):
+            resolved_columns.append(field_object.column_name)
+        else:
+            resolved_columns.append(field_name_str)
+
+    columns_repr = ", ".join(map(repr, resolved_columns))
+    return f"migrator.add_index('{meta.table_name}', {columns_repr}, unique={unique})"
 
 
 def drop_index(model_type: TModelType, name: Union[str, Iterable[str]]) -> str:
-    """Generate migrations."""
-    meta = model_type._meta  # type: ignore[]
-    columns = repr(name).strip("()[]")
-    return f"migrator.drop_index('{meta.table_name}', {columns})"
+    """Generate migrations to drop an index, resolving Foreign Key column names."""
+    meta = model_type._meta
+
+    column_names = [name] if isinstance(name, str) else name
+    resolved_columns = []
+    for field_name in column_names:
+        # field_name can be an expression, so we handle it as a string
+        field_name_str = str(field_name)
+        field_object = meta.fields.get(field_name_str)
+        if field_object and isinstance(field_object, pw.ForeignKeyField):
+            resolved_columns.append(field_object.column_name)
+        else:
+            resolved_columns.append(field_name_str)
+
+    columns_repr = ", ".join(map(repr, resolved_columns))
+    return f"migrator.drop_index('{meta.table_name}', {columns_repr})"
+# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< END OF FIX <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 
 def find_field_type(field: pw.Field) -> Type[pw.Field]:

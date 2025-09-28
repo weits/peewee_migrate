@@ -53,3 +53,6 @@ docs/_build
 .idea
 /.pytest_cache
 /example*
+
+# VSCode
+.vscode
